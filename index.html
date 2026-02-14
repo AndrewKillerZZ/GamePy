@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Python Quest Menu</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { font-family: 'Inter', sans-serif; transition: background-color 0.3s; }
+        .glass-card { background: rgba(255, 255, 255, 0.9); backdrop-filter: blur(10px); }
+        .active-scale:active { transform: scale(0.95); }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-900 select-none">
+
+    <!-- Шапка в стиле скриншота -->
+    <div class="bg-blue-600 p-6 pb-14 rounded-b-[40px] shadow-lg sticky top-0 z-10 text-white">
+        <div class="flex justify-between items-center mb-6">
+            <div class="flex items-center gap-2">
+                <span class="text-2xl">🐍</span>
+                <h1 class="text-xl font-bold italic tracking-tight uppercase">Python Quest</h1>
+            </div>
+            <div id="user-photo" class="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center font-bold">?</div>
+        </div>
+
+        <!-- Поисковая строка -->
+        <div class="relative">
+            <input type="text" id="search" placeholder="Поиск по меню..." 
+                class="w-full bg-white text-slate-800 py-4 pl-12 pr-4 rounded-2xl shadow-xl outline-none focus:ring-2 focus:ring-blue-300 transition-all text-sm">
+            <span class="absolute left-4 top-4 text-slate-400">🔍</span>
+        </div>
+    </div>
+
+    <!-- Список кнопок меню -->
+    <div class="px-4 -mt-8 space-y-3 pb-20" id="menu-container">
+        <!-- Кнопки генерируются через JS -->
+    </div>
+
+    <script>
+        const tg = window.Telegram.WebApp;
+        tg.expand(); // Расширяем на все окно
+
+        // Данные игрока из Telegram
+        if (tg.initDataUnsafe.user) {
+            document.getElementById('user-photo').innerText = tg.initDataUnsafe.user.first_name[0];
+        }
+
+        const menuItems = [
+            { id: 'continue', title: 'Продолжить', sub: 'Вернуться к уроку 5', icon: '▶️', color: 'bg-blue-500' },
+            { id: 'new_game', title: 'Новая игра', sub: 'Начать обучение с нуля', icon: '🆕', color: 'bg-emerald-500' },
+            { id: 'ranking', title: 'Рейтинг', sub: 'Посмотреть лидеров', icon: '🏆', color: 'bg-amber-500' },
+            { id: 'settings', title: 'Настройки', sub: 'Звук и интерфейс', icon: '⚙️', color: 'bg-slate-500' },
+            { id: 'exit', title: 'Выход', sub: 'Закрыть приложение', icon: '🚪', color: 'bg-rose-500' }
+        ];
+
+        function renderMenu(filter = '') {
+            const container = document.getElementById('menu-container');
+            container.innerHTML = '';
+            
+            menuItems.forEach(item => {
+                if (!item.title.toLowerCase().includes(filter.toLowerCase())) return;
+
+                const card = document.createElement('div');
+                card.className = "glass-card p-4 rounded-[24px] shadow-sm flex items-center justify-between border border-transparent hover:border-blue-200 active-scale transition-all cursor-pointer";
+                card.onclick = () => sendData(item.id, item.title);
+                
+                card.innerHTML = `
+                    <div class="flex items-center gap-4">
+                        <div class="w-12 h-12 ${item.color} rounded-full flex items-center justify-center shadow-md text-xl">
+                            ${item.icon}
+                        </div>
+                        <div>
+                            <h3 class="font-bold text-slate-800">${item.title}</h3>
+                            <p class="text-slate-400 text-xs">${item.sub}</p>
+                        </div>
+                    </div>
+                    <div class="w-10 h-10 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center">
+                        ▶
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        // Функция отправки данных боту
+        function sendData(id, title) {
+            const data = JSON.stringify({ action: id, name: title });
+            tg.sendData(data); // Эта магия отправляет сообщение боту
+            tg.close(); // Закрываем окно после нажатия
+        }
+
+        // Поиск
+        document.getElementById('search').oninput = (e) => renderMenu(e.target.value);
+
+        // Первый запуск
+        renderMenu();
+        
+        // Устанавливаем цвета темы Telegram
+        document.body.style.backgroundColor = tg.backgroundColor || '#f8fafc';
+    </script>
+</body>
+</html>
+
