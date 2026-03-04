@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Python Quest Menu</title>
+    <title>Python Quest</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
@@ -11,79 +11,187 @@
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; 
             background-color: #f3f4f6;
             -webkit-tap-highlight-color: transparent;
+            overflow: hidden; /* Запрещаем скролл, так как у нас экраны */
         }
-        
-        ::-webkit-scrollbar { width: 0; }
         
         .glass-effect { 
             background: rgba(255, 255, 255, 1); 
             box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
         }
         
-        .active-scale:active { 
-            transform: scale(0.97); 
-            background-color: #eff6ff;
-        }
-
-        /* Анимация модального окна */
-        #info-modal { transition: opacity 0.25s ease-out; }
-        .modal-hidden { opacity: 0; visibility: hidden; pointer-events: none; }
-        .modal-visible { opacity: 1; visibility: visible; pointer-events: auto; }
+        .active-scale:active { transform: scale(0.97); background-color: #eff6ff; }
+        
+        /* Анимации модальных окон и экранов */
+        .fade-transition { transition: opacity 0.3s ease, visibility 0.3s; }
+        .hidden-view { opacity: 0; visibility: hidden; pointer-events: none; position: absolute; inset: 0; z-index: -1; }
+        .active-view { opacity: 1; visibility: visible; pointer-events: auto; position: relative; z-index: 10; height: 100vh; overflow-y: auto;}
 
         .title-click-anim:active { transform: scale(0.95); opacity: 0.8; }
-        
-        /* Стиль для секретного кода */
         .code-easter-egg:active { background-color: #e2e8f0; transform: scale(0.98); }
+
+        /* Игровой холст */
+        #game-canvas {
+            background-color: #1e293b;
+            display: block;
+            margin: 0 auto;
+            border-radius: 16px;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+        }
     </style>
 </head>
-<body class="bg-gray-100 text-slate-900 select-none pb-10">
+<body class="bg-gray-100 text-slate-900 select-none">
 
-    <!-- ШАПКА -->
-    <div class="bg-blue-600 pt-6 pb-6 px-5 rounded-b-[35px] shadow-lg sticky top-0 z-40">
-        <div class="flex justify-between items-center text-white">
-            <div class="flex items-center gap-3" onclick="handleTitleClick()">
-                <div class="bg-white/20 p-2.5 rounded-2xl backdrop-blur-sm shadow-inner transition-transform title-click-anim">
-                    <span class="text-2xl">🐍</span>
+    <!-- ================= ЭКРАН 1: ГЛАВНОЕ МЕНЮ ================= -->
+    <div id="view-main" class="active-view pb-10">
+        <div class="bg-blue-600 pt-6 pb-6 px-5 rounded-b-[35px] shadow-lg sticky top-0 z-40">
+            <div class="flex justify-between items-center text-white">
+                <div class="flex items-center gap-3" onclick="handleTitleClick()">
+                    <div class="bg-white/20 p-2.5 rounded-2xl backdrop-blur-sm shadow-inner transition-transform title-click-anim">
+                        <span class="text-2xl">🐍</span>
+                    </div>
+                    <div class="cursor-pointer title-click-anim">
+                        <h1 class="text-xl font-extrabold italic tracking-wide uppercase select-none">PYTHON QUEST</h1>
+                    </div>
                 </div>
-                <div class="cursor-pointer title-click-anim">
-                    <h1 class="text-xl font-extrabold italic tracking-wide uppercase select-none">PYTHON QUEST</h1>
+                <button onclick="showInfo()" class="w-11 h-11 bg-white/20 hover:bg-white/30 rounded-full flex items-center justify-center font-bold shadow-lg backdrop-blur-md transition-colors border border-white/30">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                </button>
+            </div>
+        </div>
+        <div class="px-4 mt-6 space-y-3.5" id="menu-container"></div>
+    </div>
+
+    <!-- ================= ЭКРАН 2: СПИСОК ИГР ================= -->
+    <div id="view-games" class="hidden-view pb-10 bg-gray-50">
+        <div class="bg-emerald-500 pt-6 pb-6 px-5 rounded-b-[35px] shadow-lg sticky top-0 z-40">
+            <div class="flex items-center text-white">
+                <button onclick="switchView('view-main')" class="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center mr-4 active:scale-90 transition-transform">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" /></svg>
+                </button>
+                <h1 class="text-xl font-extrabold tracking-wide uppercase">Доступные игры</h1>
+            </div>
+        </div>
+        <div class="px-4 mt-6 space-y-4">
+            <!-- Карточка игры 1 -->
+            <div onclick="startGame('snake')" class="bg-white p-5 rounded-[24px] shadow-md active-scale transition-all cursor-pointer border border-gray-100 flex gap-4 items-center">
+                <div class="w-16 h-16 bg-emerald-100 rounded-2xl flex items-center justify-center text-3xl shrink-0">🐍</div>
+                <div class="flex-1">
+                    <h3 class="font-bold text-lg text-gray-800">Классический Питон</h3>
+                    <p class="text-gray-500 text-sm mt-1">Основы управления списками. Съешь все баги!</p>
                 </div>
+                <div class="w-8 h-8 bg-emerald-500 rounded-full flex items-center justify-center text-white shadow-lg">▶</div>
             </div>
             
-            <button onclick="showInfo()" class="w-11 h-11 bg-white/20 hover:bg-white/30 rounded-full flex items-center justify-center font-bold shadow-lg backdrop-blur-md transition-colors border border-white/30">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
+            <!-- Заглушка для будущих игр -->
+            <div onclick="showComingSoon()" class="bg-white opacity-60 p-5 rounded-[24px] shadow-sm cursor-pointer border border-gray-100 flex gap-4 items-center">
+                <div class="w-16 h-16 bg-gray-200 rounded-2xl flex items-center justify-center text-3xl shrink-0">🧮</div>
+                <div class="flex-1">
+                    <h3 class="font-bold text-lg text-gray-800">Матрица переменных</h3>
+                    <p class="text-gray-500 text-sm mt-1">В разработке...</p>
+                </div>
+                <div class="w-8 h-8 bg-gray-300 rounded-full flex items-center justify-center text-white">🔒</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ================= ЭКРАН 3: САМА ИГРА ================= -->
+    <div id="view-game" class="hidden-view bg-slate-900 flex flex-col items-center justify-start h-screen">
+        <!-- Игровая шапка -->
+        <div class="w-full flex justify-between items-center p-4 bg-slate-800 text-white shadow-md z-20">
+            <!-- Кнопка Гамбургер (3 полоски) -->
+            <button onclick="openGameMenu()" class="w-12 h-12 flex flex-col justify-center items-center gap-1.5 bg-slate-700 hover:bg-slate-600 rounded-xl active:scale-95 transition-transform">
+                <div class="w-6 h-0.5 bg-white rounded-full"></div>
+                <div class="w-6 h-0.5 bg-white rounded-full"></div>
+                <div class="w-6 h-0.5 bg-white rounded-full"></div>
+            </button>
+            
+            <div class="flex flex-col items-center">
+                <span class="text-xs text-slate-400 font-mono uppercase tracking-widest">Score</span>
+                <span id="game-score" class="text-xl font-bold font-mono text-emerald-400">0</span>
+            </div>
+            
+            <div class="w-12 h-12"></div> <!-- Пустой блок для баланса -->
+        </div>
+
+        <!-- Контейнер игры (холст) -->
+        <div class="flex-1 w-full flex items-center justify-center p-4 relative" id="game-area">
+            <canvas id="game-canvas"></canvas>
+            
+            <!-- Экран Game Over -->
+            <div id="game-over-screen" class="absolute inset-0 bg-slate-900/80 backdrop-blur-sm flex flex-col items-center justify-center hidden">
+                <h2 class="text-4xl font-black text-rose-500 mb-2">CRASHED</h2>
+                <p class="text-slate-300 mb-6">Итоговый счет: <span id="final-score" class="font-bold text-white">0</span></p>
+                <div class="flex gap-4">
+                    <button onclick="startGame('snake')" class="bg-emerald-500 text-white px-6 py-3 rounded-xl font-bold shadow-lg shadow-emerald-500/30 active:scale-95">Заново</button>
+                    <button onclick="switchView('view-games')" class="bg-slate-700 text-white px-6 py-3 rounded-xl font-bold active:scale-95">Выход</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ================= ВНУТРИИГРОВОЕ МЕНЮ (МОДАЛКА) ================= -->
+    <div id="game-menu-modal" class="fade-transition hidden-view fixed inset-0 z-50 flex items-center justify-center px-4">
+        <div class="absolute inset-0 bg-black/70 backdrop-blur-md" onclick="closeGameMenu()"></div>
+        <div class="relative bg-slate-800 border border-slate-700 rounded-[28px] p-6 w-full max-w-xs shadow-2xl flex flex-col gap-3">
+            <h2 class="text-white font-bold text-xl text-center mb-2 font-mono">Game Menu</h2>
+            
+            <button onclick="closeGameMenu()" class="bg-blue-600 text-white py-3.5 rounded-xl font-bold flex items-center justify-center gap-2 active:scale-95 transition-transform">
+                <span>▶️</span> Продолжить
+            </button>
+            <button onclick="saveGameProgress()" class="bg-emerald-600 text-white py-3.5 rounded-xl font-bold flex items-center justify-center gap-2 active:scale-95 transition-transform">
+                <span>💾</span> Сохранить
+            </button>
+            <button onclick="showPythonCode()" class="bg-purple-600 text-white py-3.5 rounded-xl font-bold flex items-center justify-center gap-2 active:scale-95 transition-transform">
+                <span>💻</span> Посмотреть код
+            </button>
+            <div class="h-px bg-slate-700 my-1"></div>
+            <button onclick="exitGame()" class="bg-rose-600 text-white py-3.5 rounded-xl font-bold flex items-center justify-center gap-2 active:scale-95 transition-transform">
+                <span>🚪</span> Выход в меню
             </button>
         </div>
     </div>
 
-    <!-- МЕНЮ -->
-    <div class="px-4 mt-6 space-y-3.5" id="menu-container"></div>
-
-    <!-- МОДАЛЬНОЕ ОКНО -->
-    <div id="info-modal" class="modal-hidden fixed inset-0 z-50 flex items-center justify-center px-4">
+    <!-- ================= ОБЩЕЕ ИНФО/СЕКРЕТЫ МОДАЛКА (ИЗ ГЛАВНОГО МЕНЮ) ================= -->
+    <div id="info-modal" class="fade-transition hidden-view fixed inset-0 z-50 flex items-center justify-center px-4">
         <div id="modal-overlay" class="absolute inset-0 bg-black/60 backdrop-blur-sm"></div>
-        
         <div class="relative bg-white rounded-[32px] p-8 w-full max-w-sm shadow-2xl transform transition-all">
-            
-            <!-- КНОПКА ЗАКРЫТИЯ (X) -->
-            <button onclick="toggleModal(false)" class="absolute top-5 right-5 w-9 h-9 flex items-center justify-center bg-gray-100 text-gray-500 rounded-full active:scale-90 transition-transform">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                    <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd" />
-                </svg>
+            <button onclick="toggleInfoModal(false)" class="absolute top-5 right-5 w-9 h-9 flex items-center justify-center bg-gray-100 text-gray-500 rounded-full active:scale-90 transition-transform">
+                <svg class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd" /></svg>
             </button>
-
             <div class="text-center mb-6 mt-2">
                 <div id="modal-icon" class="w-20 h-20 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-4xl mx-auto mb-4 shadow-sm italic">🎓</div>
                 <h2 id="modal-title" class="text-2xl font-black text-gray-800 tracking-tight leading-tight"></h2>
             </div>
-
             <div id="modal-content" class="text-gray-600 text-[15px] leading-relaxed text-center mb-8"></div>
-
-            <button id="modal-btn-ok" onclick="toggleModal(false)" class="w-full bg-blue-600 text-white py-4 rounded-2xl font-bold text-lg shadow-lg shadow-blue-200 active:scale-95 transition-transform">
+            <button id="modal-btn-ok" onclick="toggleInfoModal(false)" class="w-full bg-blue-600 text-white py-4 rounded-2xl font-bold text-lg shadow-lg shadow-blue-200 active:scale-95 transition-transform">
                 Понятно!
             </button>
+        </div>
+    </div>
+
+    <!-- МОДАЛКА С КОДОМ ПИТОНА -->
+    <div id="code-modal" class="fade-transition hidden-view fixed inset-0 z-50 flex items-center justify-center px-4">
+        <div class="absolute inset-0 bg-black/80 backdrop-blur-sm" onclick="closePythonCode()"></div>
+        <div class="relative bg-slate-900 border border-slate-700 rounded-xl p-4 w-full max-w-md shadow-2xl">
+            <div class="flex justify-between items-center mb-3">
+                <span class="text-slate-400 font-mono text-sm">game_logic.py</span>
+                <button onclick="closePythonCode()" class="text-slate-400 hover:text-white">✕</button>
+            </div>
+            <pre class="text-emerald-400 font-mono text-xs overflow-x-auto p-3 bg-black rounded-lg"><code>def update_snake():
+    head = snake[0].copy()
+    head.x += direction.x
+    head.y += direction.y
+    
+    if head == food:
+        score += 1
+        spawn_food()
+    else:
+        snake.pop() # удаляем хвост
+        
+    snake.insert(0, head)
+    
+    if check_collision(head):
+        game_over()</code></pre>
         </div>
     </div>
 
@@ -91,59 +199,55 @@
         const tg = window.Telegram.WebApp;
         tg.expand();
 
+        // ================= НАВИГАЦИЯ ЭКРАНОВ =================
+        function switchView(viewId) {
+            document.getElementById('view-main').className = 'hidden-view';
+            document.getElementById('view-games').className = 'hidden-view';
+            document.getElementById('view-game').className = 'hidden-view';
+            
+            document.getElementById(viewId).className = 'active-view pb-10';
+            if(viewId === 'view-game') document.getElementById(viewId).className = 'active-view bg-slate-900 flex flex-col items-center justify-start h-screen';
+            
+            if(tg.HapticFeedback) tg.HapticFeedback.impactOccurred('light');
+        }
+
+        // ================= ЛОГИКА ГЛАВНОГО МЕНЮ =================
         let savedProgress = localStorage.getItem('python_quest_level') || "Урок 5: Циклы While";
         let isSecretActive = localStorage.getItem('easter_egg_1_active') === 'true';
 
-        // Счетчики для пасхалок
-        let titleClickCount = 0;
-        let codeClickCount = 0;
-        let clickTimer;
+        let titleClickCount = 0; let codeClickCount = 0; let clickTimer;
 
-        // Обработка 5 нажатий на заголовок
         function handleTitleClick() {
             titleClickCount++;
             if(tg.HapticFeedback) tg.HapticFeedback.selectionChanged();
             if (titleClickCount === 5) {
-                if (!isSecretActive) {
-                    showFirstSecret();
-                    isSecretActive = true;
-                    localStorage.setItem('easter_egg_1_active', 'true');
-                } else {
-                    showSecondSecret();
-                }
+                if (!isSecretActive) { showFirstSecret(); isSecretActive = true; localStorage.setItem('easter_egg_1_active', 'true'); } 
+                else { showSecondSecret(); }
                 titleClickCount = 0;
             }
             clearTimeout(clickTimer);
             clickTimer = setTimeout(() => { titleClickCount = 0; }, 1500);
         }
 
-        // Обработка 5 нажатий на текст кода (внутри модалки)
         function handleCodeClick() {
             codeClickCount++;
             if(tg.HapticFeedback) tg.HapticFeedback.impactOccurred('medium');
-            
-            if (codeClickCount === 5) {
-                showCraneSecret();
-                codeClickCount = 0;
-            }
-            // Сброс счетчика кода, если долго не нажимать
+            if (codeClickCount === 5) { showCraneSecret(); codeClickCount = 0; }
             setTimeout(() => { codeClickCount = 0; }, 3000);
         }
 
         const menuItems = [
             { id: 'continue', title: 'Продолжить', sub: savedProgress, icon: '▶️', color: 'bg-blue-100 text-blue-600' },
-            { id: 'multiplayer', title: 'Мультиплеер', sub: 'PvP Битва скриптов', icon: '⚔️', color: 'bg-purple-100 text-purple-600' },
-            { id: 'new_game', title: 'Новая игра', sub: 'Начать с нуля', icon: '🆕', color: 'bg-emerald-100 text-emerald-600' },
+            { id: 'new_game', title: 'Новая игра', sub: 'Начать играть', icon: '🎮', color: 'bg-emerald-100 text-emerald-600' },
+            { id: 'multiplayer', title: 'Мультиплеер', sub: 'PvP Битва', icon: '⚔️', color: 'bg-purple-100 text-purple-600' },
             { id: 'ranking', title: 'Рейтинг', sub: 'Топ игроков', icon: '🏆', color: 'bg-amber-100 text-amber-600' },
-            { id: 'settings', title: 'Настройки', sub: 'Звук и язык', icon: '⚙️', color: 'bg-slate-100 text-slate-600' },
-            { id: 'shop', title: 'Магазин', sub: 'Купить подсказки', icon: '🛒', color: 'bg-pink-100 text-pink-600' },
-            { id: 'exit', title: 'Выход', sub: 'Закрыть игру', icon: '🚪', color: 'bg-rose-100 text-rose-600' }
+            { id: 'shop', title: 'Магазин', sub: 'Скины и подсказки', icon: '🛒', color: 'bg-pink-100 text-pink-600' }
         ];
 
         function renderMenu() {
             const container = document.getElementById('menu-container');
             container.innerHTML = menuItems.map(item => `
-                <div onclick="sendData('${item.id}', '${item.title}')" class="glass-effect p-3.5 rounded-[24px] flex items-center justify-between active-scale transition-all cursor-pointer border border-white/60 mb-1">
+                <div onclick="handleMenuClick('${item.id}')" class="glass-effect p-3.5 rounded-[24px] flex items-center justify-between active-scale transition-all cursor-pointer border border-white/60 mb-1">
                     <div class="flex items-center gap-4">
                         <div class="w-12 h-12 ${item.color} rounded-full flex items-center justify-center text-xl shrink-0 shadow-sm">${item.icon}</div>
                         <div class="flex flex-col text-left">
@@ -158,79 +262,244 @@
             `).join('');
         }
 
-        function sendData(id, title) {
-            if(tg.HapticFeedback) tg.HapticFeedback.impactOccurred('light');
-            tg.sendData(JSON.stringify({ action: id, name: title }));
-            tg.close();
+        function handleMenuClick(id) {
+            if(id === 'new_game') { switchView('view-games'); }
+            else if(id === 'continue') { switchView('view-games'); } // Пока тоже кидаем в список игр
+            else { 
+                if(tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('warning');
+                tg.showAlert("Этот раздел пока в разработке!"); 
+            }
         }
 
+        // ================= МОДАЛКИ ГЛАВНОГО МЕНЮ =================
         function showInfo() {
             setModal('🎓', 'Об игре', `
                 Изучай язык программирования в формате тактической игры.<br><br>
-                🧩 <b>PvE:</b> Одиночные уровни с головоломками.<br>
-                ⚔️ <b>PvP:</b> Баттлы алгоритмов против соперников.<br><br>
-                Побеждает тот, чей код эффективнее!
                 <div onclick="handleCodeClick()" class="bg-gray-100 p-3 rounded-xl text-center mt-4 border border-gray-200 active:bg-gray-200 transition-colors cursor-pointer code-easter-egg">
                     <code class="text-blue-600 font-bold font-mono text-sm">print("Good luck good day")</code>
                 </div>
             `, true);
         }
 
-        function showFirstSecret() {
-            if(tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
-            setModal('🕵️‍♂️', 'Секрет открыт!', `
-                Вы активировали секретную функцию в настройках, скорее проверяйте ее!
-            `, false);
-        }
-
-        function showSecondSecret() {
-            if(tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('warning');
-            setModal('🛠', 'Настоящий тестировщик', `
-                Вы открыли одну из нескольких пасхалок в этой игре!<br><br>
-                Секретная функция уже активирована! Ищите другие пасхалки! 😊
-            `, false);
-        }
-
-        // ПАСХАЛКА С КАЙЛОМ КРЕЙНОМ
-        function showCraneSecret() {
-            if(tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
-            setModal('🧟‍♂️', 'Пасхалка!', `
-                <b>Поздравляем, вы нашли пасхалку!</b><br><br>
-                Кайл Крейн передает привет! 😊😁
-            `, false);
-        }
+        function showFirstSecret() { setModal('🕵️‍♂️', 'Секрет открыт!', `Вы активировали секретную функцию в настройках, скорее проверяйте ее!`, false); }
+        function showSecondSecret() { setModal('🛠', 'Настоящий тестировщик', `Вы открыли одну из нескольких пасхалок в этой игре!<br>Ищите другие! 😊`, false); }
+        function showCraneSecret() { setModal('🧟‍♂️', 'Пасхалка!', `<b>Поздравляем, вы нашли пасхалку!</b><br><br>Кайл Крейн передает привет! 😊😁`, false); }
 
         function setModal(icon, title, content, isStandard) {
             document.getElementById('modal-icon').innerText = icon;
             document.getElementById('modal-title').innerText = title;
             document.getElementById('modal-content').innerHTML = content;
+            document.getElementById('modal-btn-ok').style.display = isStandard ? 'block' : 'none';
+            document.getElementById('modal-overlay').onclick = isStandard ? () => toggleInfoModal(false) : null;
+            toggleInfoModal(true);
+        }
+
+        function toggleInfoModal(show) {
+            const m = document.getElementById('info-modal');
+            m.className = show ? 'fade-transition active-view fixed inset-0 z-50 flex items-center justify-center px-4' : 'fade-transition hidden-view';
+        }
+
+        function showComingSoon() { tg.showAlert("Эта игра откроется на 10 уровне!"); }
+
+        // ================= ДВИЖОК ИГРЫ "ПИТОН" =================
+        let canvas, ctx;
+        let gameLoop;
+        let gridSize = 20;
+        let snake = [];
+        let food = {};
+        let dx = 0, dy = -1; // Направление
+        let nextDx = 0, nextDy = -1;
+        let score = 0;
+        let isGameOver = false;
+        let isPaused = false;
+
+        function startGame(gameId) {
+            if(gameId === 'snake') {
+                switchView('view-game');
+                document.getElementById('game-over-screen').classList.add('hidden');
+                initSnakeGame();
+            }
+        }
+
+        function initSnakeGame() {
+            canvas = document.getElementById('game-canvas');
+            ctx = canvas.getContext('2d');
             
-            const btnOk = document.getElementById('modal-btn-ok');
-            const overlay = document.getElementById('modal-overlay');
+            // Настройка размера канваса под экран
+            const container = document.getElementById('game-area');
+            const size = Math.min(container.clientWidth - 32, container.clientHeight - 32);
+            canvas.width = size;
+            canvas.height = size;
+            gridSize = size / 20; // 20 клеток
 
-            if (isStandard) {
-                btnOk.style.display = 'block';
-                overlay.onclick = () => toggleModal(false); 
-            } else {
-                btnOk.style.display = 'none';
-                overlay.onclick = null; 
-            }
-            toggleModal(true);
+            // Начальные данные
+            snake = [
+                {x: 10, y: 10},
+                {x: 10, y: 11},
+                {x: 10, y: 12}
+            ];
+            dx = 0; dy = -1; nextDx = 0; nextDy = -1;
+            score = 0;
+            isGameOver = false;
+            isPaused = false;
+            updateScore();
+            placeFood();
+
+            if(gameLoop) clearInterval(gameLoop);
+            gameLoop = setInterval(updateSnake, 150); // Скорость змейки
+            
+            setupTouchControls();
         }
 
-        function toggleModal(show) {
-            const modal = document.getElementById('info-modal');
-            if (show) {
-                modal.classList.remove('modal-hidden');
-                modal.classList.add('modal-visible');
+        function updateSnake() {
+            if (isGameOver || isPaused) return;
+
+            dx = nextDx; dy = nextDy;
+            const head = { x: snake[0].x + dx, y: snake[0].y + dy };
+
+            // Столкновение со стеной
+            if (head.x < 0 || head.x >= 20 || head.y < 0 || head.y >= 20) {
+                return gameOver();
+            }
+            // Столкновение с собой
+            for (let i = 0; i < snake.length; i++) {
+                if (head.x === snake[i].x && head.y === snake[i].y) return gameOver();
+            }
+
+            snake.unshift(head); // Двигаем голову
+
+            // Съели еду
+            if (head.x === food.x && head.y === food.y) {
+                score += 10;
+                updateScore();
+                if(tg.HapticFeedback) tg.HapticFeedback.impactOccurred('light');
+                placeFood();
             } else {
-                modal.classList.remove('modal-visible');
-                modal.classList.add('modal-hidden');
+                snake.pop(); // Удаляем хвост, если не ели
+            }
+
+            drawSnake();
+        }
+
+        function drawSnake() {
+            ctx.fillStyle = '#1e293b'; // Фон канваса
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Отрисовка еды (красный квадратик/баг)
+            ctx.fillStyle = '#f43f5e';
+            ctx.beginPath();
+            ctx.roundRect(food.x * gridSize + 2, food.y * gridSize + 2, gridSize - 4, gridSize - 4, 4);
+            ctx.fill();
+
+            // Отрисовка змеи (изумрудный)
+            snake.forEach((part, index) => {
+                ctx.fillStyle = index === 0 ? '#10b981' : '#34d399'; // Голова темнее
+                ctx.beginPath();
+                ctx.roundRect(part.x * gridSize + 1, part.y * gridSize + 1, gridSize - 2, gridSize - 2, index === 0 ? 6 : 2);
+                ctx.fill();
+            });
+        }
+
+        function placeFood() {
+            food = {
+                x: Math.floor(Math.random() * 20),
+                y: Math.floor(Math.random() * 20)
+            };
+            // Проверка, не заспавнилась ли еда в змее
+            snake.forEach(part => {
+                if(part.x === food.x && part.y === food.y) placeFood();
+            });
+        }
+
+        function gameOver() {
+            isGameOver = true;
+            clearInterval(gameLoop);
+            if(tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('error');
+            document.getElementById('final-score').innerText = score;
+            document.getElementById('game-over-screen').classList.remove('hidden');
+        }
+
+        function updateScore() {
+            document.getElementById('game-score').innerText = score;
+        }
+
+        // --- Управление Свайпами ---
+        let touchStartX = 0, touchStartY = 0;
+        function setupTouchControls() {
+            canvas.addEventListener('touchstart', e => {
+                touchStartX = e.changedTouches[0].screenX;
+                touchStartY = e.changedTouches[0].screenY;
+            }, {passive: false});
+
+            canvas.addEventListener('touchmove', e => {
+                e.preventDefault(); // Отменяем скролл экрана
+            }, {passive: false});
+
+            canvas.addEventListener('touchend', e => {
+                let touchEndX = e.changedTouches[0].screenX;
+                let touchEndY = e.changedTouches[0].screenY;
+                handleSwipe(touchStartX, touchStartY, touchEndX, touchEndY);
+            });
+        }
+
+        function handleSwipe(startX, startY, endX, endY) {
+            const diffX = endX - startX;
+            const diffY = endY - startY;
+            const absX = Math.abs(diffX);
+            const absY = Math.abs(diffY);
+
+            if (Math.max(absX, absY) > 20) { // Минимальная длина свайпа
+                if (absX > absY) {
+                    // Горизонтально
+                    if (diffX > 0 && dx !== -1) { nextDx = 1; nextDy = 0; } // Вправо
+                    else if (diffX < 0 && dx !== 1) { nextDx = -1; nextDy = 0; } // Влево
+                } else {
+                    // Вертикально
+                    if (diffY > 0 && dy !== -1) { nextDx = 0; nextDy = 1; } // Вниз
+                    else if (diffY < 0 && dy !== 1) { nextDx = 0; nextDy = -1; } // Вверх
+                }
             }
         }
 
+        // ================= ВНУТРИИГРОВОЕ МЕНЮ (ГАМБУРГЕР) =================
+        function openGameMenu() {
+            if(isGameOver) return;
+            isPaused = true;
+            if(tg.HapticFeedback) tg.HapticFeedback.impactOccurred('medium');
+            const menu = document.getElementById('game-menu-modal');
+            menu.className = 'fade-transition active-view fixed inset-0 z-50 flex items-center justify-center px-4';
+        }
+
+        function closeGameMenu() {
+            const menu = document.getElementById('game-menu-modal');
+            menu.className = 'fade-transition hidden-view';
+            isPaused = false;
+        }
+
+        function saveGameProgress() {
+            localStorage.setItem('python_quest_score', score);
+            tg.showAlert(`Прогресс сохранен! Ваш счет: ${score}`);
+            closeGameMenu();
+        }
+
+        function showPythonCode() {
+            document.getElementById('code-modal').className = 'fade-transition active-view fixed inset-0 z-50 flex items-center justify-center px-4';
+        }
+
+        function closePythonCode() {
+            document.getElementById('code-modal').className = 'fade-transition hidden-view';
+        }
+
+        function exitGame() {
+            closeGameMenu();
+            clearInterval(gameLoop);
+            switchView('view-games');
+        }
+
+        // Инит
         renderMenu();
     </script>
 </body>
 </html>
+
 
